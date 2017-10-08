@@ -1,3 +1,8 @@
+*.jpeg
+*.ppm
+
+# Vim files
+*.sw*
 # Prerequisites
 *.d
 
