@@ -80,7 +80,7 @@ uint8_t read_byte(struct bitstream *bs)
 {
     /* Read next byte from file */
     fread(&bs->buf, sizeof(uint8_t), 1, bs->fp);
-    bs->bufoffset = 8;
+    bs->bufoffset = 0;
     if (fpeek(bs->fp) == EOF) {
         bs->last = 1;
     }
