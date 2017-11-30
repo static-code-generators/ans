@@ -1,6 +1,8 @@
 *.jpeg
 *.ppm
 jpegdec
+r2y
+y2r
 
 # Vim files
 *.sw*
