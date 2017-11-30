@@ -1,5 +1,7 @@
 *.jpeg
 *.ppm
+*.kans
+*.kmp
 jpegdec
 r2y
 y2r
