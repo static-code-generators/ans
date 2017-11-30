@@ -14,4 +14,6 @@ int main(int argc, char **argv){
 	Cr = floor(128 + (0.5 * R) - (0.418688 * G) - (0.081312 * B) + 0.5);
 
 	printf("%u %u %u\n", Y, Cb, Cr);
+
+	return 0;
 }

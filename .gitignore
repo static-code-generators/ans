@@ -3,6 +3,10 @@
 jpegdec
 r2y
 y2r
+dct
+quantize
+input
+input2
 
 # Vim files
 *.sw*

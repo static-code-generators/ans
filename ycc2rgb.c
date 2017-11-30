@@ -14,4 +14,6 @@ int main(int argc, char **argv){
 	B = floor(Y + (1.772 * (Cb - 128)) + 0.5);
 
 	printf("%u %u %u\n", R, G, B);
+
+	return 0;
 }
