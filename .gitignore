@@ -4,9 +4,15 @@ jpegdec
 r2y
 y2r
 dct
+idct
 quantize
+revquantize
 input
-input2
+output_dct
+output_idct
+output_quantize
+output_revq
+output_idct
 
 # Vim files
 *.sw*

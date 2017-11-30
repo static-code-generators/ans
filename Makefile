@@ -1,7 +1,7 @@
 CC=gcc
 CFLAGS=-g
 
-all: jpegdec rgb2ycc ycc2rgb dct quantize
+all: jpegdec rgb2ycc ycc2rgb dct idct quantize revquantize
 
 jpegdec: jpegdec.o bitstream.o
 	$(CC) $(CFLAGS) $< bitstream.o -o jpegdec 
@@ -15,7 +15,13 @@ ycc2rgb: ycc2rgb.o
 dct: dct.o
 	$(CC) $(CFLAGS) -lm $< -o $@
 
+idct: idct.o
+	$(CC) $(CFLAGS) -lm $< -o $@	
+
 quantize: quantize.o
+	$(CC) $(CFLAGS) -lm $< -o $@
+
+revquantize: revquantize.o
 	$(CC) $(CFLAGS) -lm $< -o $@
 
 %.s: %.c
@@ -26,4 +32,4 @@ lib%.so: %.c
 
 clean:
 	rm -rf *.o
-	rm -f jpegdec r2y y2r dct quantize
+	rm -f jpegdec r2y y2r dct quantize idct revquantize
