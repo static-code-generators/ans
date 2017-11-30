@@ -40,7 +40,7 @@ static void handle_marker(JpegCtx *j)
         read_huffman_table(j);
         break;
     case 0xd9: // end of image
-        exit(1); 
+        exit(0); 
     case 0xd8: // start of image
     default:
         break;
