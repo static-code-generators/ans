@@ -7,80 +7,50 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
-#include "bitstream.h"
-#include "kmp.h"
+#include "kans.h"
 
-int read_header(FILE *fp, struct huffcode codebook[ALPHLEN])
+void read_header(FILE *fp, struct ANSCtx *a)
 {
-    uint8_t byte, x, y;
+    /* Read identifier code */
+    uint8_t byte;
     uint16_t magic;
     fread(&byte, sizeof(uint8_t), 1, fp);
     magic = byte;
     fread(&byte, sizeof(uint8_t), 1, fp);
     magic <<= 8;
     magic |= byte;
-    if (!(magic == 0x05A1)) {
+    if (!(magic == 0xA105)) {
         fprintf(stderr, "File is not in KMP format\n");
         exit(EXIT_FAILURE);
     }
+    /* Read number of symbols in table */
     fread(&byte, sizeof(uint8_t), 1, fp);
-    int padding = byte;
-    fread(&byte, sizeof(uint8_t), 1, fp);
-    int n = byte, i, j, k;
+    int n = byte, i;
+    /* Read final state */
+    fread(&a->state, sizeof(uint32_t), 1, fp);
     uint8_t symb;
-    char code[MAX_CODELEN];
-    memset(code, 0, MAX_CODELEN);
-    if (n == 0) {
-        n = 256;
-    }
+    uint16_t fs;
+    /* Read frequency table */
     for (i=0; i<n; i++) {
+        /* Read symbol code */
         fread(&byte, sizeof(uint8_t), 1, fp);
         symb = byte;
-        fread(&byte, sizeof(uint8_t), 1, fp);
-        x = byte >> 4; // no. of bytes
-        y = byte & 0x0f; // padding
-        memset(code, 0, MAX_CODELEN);
-        for (j=0; j<x; j++) {
-            fread(&byte, sizeof(uint8_t), 1, fp);
-            for (k=7; (j!=x-1 && k>=0) || (j==x-1 && k>=y); k--) {
-                code[strlen(code)] = ((byte >> k) & 1) == 0 ? '0' : '1';
-                code[strlen(code) + 1] = '\0';
-            }
-        }
-        codebook[symb].set = 1;
-        strcpy(codebook[symb].code, code);
+        /* Read symbol frequency */
+        fread(&fs, sizeof(uint16_t), 1, fp);
+        a->ftable[symb].f = fs;
     }
-    return padding;
-}
-
-void update_tree(struct treenode *root, uint8_t sym, char *code)
-{
-    struct treenode *ptr = root;
-    int i;
-    for (i=0; code[i]; i++) {
-        if (code[i] == '0') {
-            if (!ptr->l) {
-                ptr->l = malloc(sizeof(struct treenode));
-                ptr->l->is_internal = 1;
-                ptr->l->l = ptr->l->r = NULL;
-            }
-            ptr = ptr->l;
-        } else {
-            if (!ptr->r) {
-                ptr->r = malloc(sizeof(struct treenode));
-                ptr->r->is_internal = 1;
-                ptr->r->l = ptr->r->r = NULL;
-            }
-            ptr = ptr->r;
-        }
+    /* Update frequency table */
+    for (int i = 0; i < ALPHLEN; i++) {
+        a->ftable[i].maxX = MAX_X * a->ftable[i].f - 1;
+        a->ftable[i].c = ((i > 0) ? (a->ftable[i-1].c + a->ftable[i-1].f) : 0);
     }
-    ptr->symbol = sym;
-    ptr->is_internal = 0;
 }
 
 int main(int argc, char *argv[])
 {
     FILE *kmp, *fp = stdout;
+    uint8_t byte, symb;
+    uint16_t chunk;
     int i;
     if (argc == 2) {
         if (!(kmp = fopen(argv[1], "rb"))) {
@@ -91,41 +61,32 @@ int main(int argc, char *argv[])
         printf("USAGE: %s <infile.kmp>\n", argv[0]);
         exit(EXIT_SUCCESS);
     }
-    struct huffcode codebook[ALPHLEN];
-    for (i=0; i<ALPHLEN; i++) {
-        codebook[i].set = 0;
+    struct ANSCtx *a = malloc(sizeof(struct ANSCtx));
+    a->ftable = malloc(sizeof(struct ftnode) * ALPHLEN);
+    a->b = STREAM_RANGE;
+    /* set initial frequencies to 0 */
+    for (int i = 0; i < ALPHLEN; i++) {
+        a->ftable[i].n = 0;
     }
-    int padding = read_header(kmp, codebook);
-    struct treenode *root = malloc(sizeof(struct treenode));
-    root->symbol = 0;
-    root->is_internal = 1;
-    root->l = root->r = NULL;
-    for (i=0; i<ALPHLEN; i++) {
-        if (codebook[i].set) {
-            update_tree(root, i, codebook[i].code);
+    /* read final state and frequency table from header */
+    read_header(kmp, a);
+    /* decode */
+    uint8_t status = 1;
+    while (a->state != 1) {
+        uint8_t symb = ANSDecompress(a);
+        fwrite(&symb, sizeof(uint8_t), 1, stdout);
+        /*printf("s:0x%02x, x: 0x%08x\n", symb, a->state);*/
+        while (status && a->state < STREAM_RANGE) {
+            fread(&chunk, sizeof(uint16_t), 1, kmp);
+            /*printf("STREAM 0x%04x\n", chunk);*/
+            if (feof(kmp)) {
+                status = 0;
+                break;
+            }
+            a->state = (a->state << STREAM_BITS) + chunk;
         }
+        /*printf("x': 0x%08x\n", a->state);*/
     }
-    struct treenode *ptr = root;
-    struct bitstream *bs = initbitstream(kmp, BS_READ, padding);
-    int start = 1;
-    int b;
-    while ((b = read_bit(bs)) != -1) {
-        if (start) {
-            ptr = root;
-            start = 0;
-        }
-        if (b == 0) {
-            ptr = ptr->l;
-        } else if (b == 1) {
-            ptr = ptr->r;
-        }
-        if (!ptr->is_internal) {
-            start = 1;
-            //printf("%c", ptr->symbol);
-            fwrite(&ptr->symbol, sizeof(uint8_t), 1, stdout);
-        }
-    }
-    closebitstream(bs);
     fclose(kmp);
     return 0;
 }

@@ -80,38 +80,11 @@ void prepare_ans(FILE *fp, struct ANSCtx *a)
     a->ftable = malloc(sizeof(struct ftnode) * ALPHLEN);
     create_freq_table(fp, a->ftable);
     a->b = STREAM_RANGE;
-    for (int i = 0; i < ALPHLEN; i++) {
+    /*for (int i = 0; i < ALPHLEN; i++) {
         if (a->ftable[i].n > 0) {
             printf("%02x: %d, %d\n", i, a->ftable[i].f, a->ftable[i].c);
         }
-    }
-}
-
-uint8_t find_symbol(struct ANSCtx *a)
-{
-    uint32_t mx = a->state & ANS_MASK;
-    for (int i = 0; i < ALPHLEN; i++) {
-        if (mx >= a->ftable[i].c && mx < a->ftable[i+1].c) {
-            return (uint8_t) i;
-        }
-    }
-    return 0;
-}
-
-void ANSCompress(struct ANSCtx *a, uint8_t symbol)
-{
-    a->state = ((a->state/a->ftable[symbol].f) << ANS_BITS)
-               + (a->state % a->ftable[symbol].f)
-               + a->ftable[symbol].c;
-}
-
-uint8_t ANSDecompress(struct ANSCtx *a)
-{
-    uint8_t symbol = find_symbol(a);
-    a->state = a->ftable[symbol].f * (a->state >> ANS_BITS)
-               + (a->state & ANS_MASK)
-               - a->ftable[symbol].c;
-    return symbol;
+    }*/
 }
 
 int main(int argc, char *argv[])
@@ -140,7 +113,9 @@ int main(int argc, char *argv[])
     FILE *temp = tmpfile();
     uint8_t byte;
     uint16_t chunk;
-    while (fread(&byte, sizeof(uint8_t), 1, fp) == 1) {
+    fseek(fp, -1, SEEK_END);
+    while (1) {
+        fread(&byte, sizeof(uint8_t), 1, fp);
         /*printf("s:0x%02x, x: 0x%08x\n", byte, a->state);*/
         while (a->state > a->ftable[byte].maxX) {
             /* STREAM */
@@ -154,14 +129,26 @@ int main(int argc, char *argv[])
         uint8_t temp = ANSDecompress(a);
         /*printf("VERIFY x: 0x%08x, s: 0x%02x\n", a->state, temp);*/
         ANSCompress(a, byte);
+        if (ftell(fp) <= 1) {
+            break;
+        } else {
+            fseek(fp, -2, SEEK_CUR);
+        }
     }
     fclose(fp);
     /* Write header to the output file */
     write_header(kans, a);
     /* Copy bitstream from tempfile to output file */
     rewind(temp);
-    while (fread(&byte, sizeof(uint8_t), 1, temp) == 1) {
-        fwrite(&byte, sizeof(uint8_t), 1, kans);
+    fseek(temp, -2, SEEK_END);
+    while (1) {
+        fread(&chunk, sizeof(uint16_t), 1, temp);
+        fwrite(&chunk, sizeof(uint16_t), 1, kans);
+        if (ftell(temp) <= 3) {
+            break;
+        } else {
+            fseek(temp, -4, SEEK_CUR);
+        }
     }
     fclose(temp);
     fclose(kans);

@@ -1,13 +1,15 @@
 CC=gcc
 CFLAGS=-O2
 
-all: compress 
+all: compress decompress
 
-compress: compress.o kans.h
-	$(CC) $(CFLAGS) compress.o -o compress
+compress: compress.o kans.o
+	$(CC) $(CFLAGS) kans.o compress.o -o compress
 
-decompress: decompress.o kans.h
-	$(CC) $(CFLAGS) decompress.o -o decompress
+decompress: decompress.o kans.o
+	$(CC) $(CFLAGS) kans.o decompress.o -o decompress
+
+kans.o: kans.h
 
 %.s: %.c
 	$(CC) $(CFLAGS) -S -o $@ $<

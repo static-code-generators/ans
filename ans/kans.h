@@ -3,6 +3,8 @@
  * KANS Header
  */
 
+#include <stdint.h>
+
 #ifndef KANS_H
 #define KANS_H
 
@@ -27,4 +29,6 @@ struct ANSCtx {
     uint32_t state;
 };
 
+void ANSCompress(struct ANSCtx *a, uint8_t symbol);
+uint8_t ANSDecompress(struct ANSCtx *a);
 #endif
