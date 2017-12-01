@@ -4,7 +4,7 @@ KANS File Format
 Kompress-ANS file header
 ------------------------
 
-| byte 1 | byte 2 | byte 3             | byte 4-5       | Frequency table    |
+| byte 1 | byte 2 | byte 3             | byte 4-7       | Frequency table    |
 | ------ | ------ | ------------------ | -------------- | ------------------ | 
 | 0xA1   | 0x05   | no. of symbols (n) | final state x' | n-entries          | 
 
@@ -13,7 +13,7 @@ KANS format guidelines.
 
 ### Frequency table entry format
 
-| byte 1       |  byte 2                  |
+| byte 1       |  byte 2-3                |
 | ------------ |  ----------------------- |
 | symbol ascii |  fs in working ANS range |
 

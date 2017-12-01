@@ -12,65 +12,35 @@
 #include <assert.h>
 #include "kans.h"
 
-/*void write_header(FILE *fp, uint8_t padding, struct huffcode codebook[ALPHLEN])
+void write_header(FILE *fp, struct ANSCtx *a)
 {
     uint8_t byte;
+    uint16_t fs;
     int n = 0, i, j, k;
-    [> Write identifying hex code 0x05A1 <]
+    /* Write identifying hex code 0xA105 */
     putc(0xA1, fp);
     putc(0x05, fp);
-    [> Write padding byte <]
-    fwrite(&padding, sizeof(uint8_t), 1, fp);
-    [> Write number of symbols <]
+    /* Write number of symbols */
     for (i=0; i<ALPHLEN; i++) {
-        if (codebook[i].set) {
+        if (a->ftable[i].f > 0) {
             n++;
         }
     }
     byte = n; fwrite(&byte, sizeof(uint8_t), 1, fp);
-    [> Writing the code map <]
-    uint8_t x, y, l, buf, offset;
-    char code[30];
+    /* Write final state of encoder */
+    fwrite(&a->state, sizeof(uint32_t), 1, fp);
+    /* Writing the frequency table */
     for (i=0; i<ALPHLEN; i++) {
-        if (codebook[i].set) {
-            [> Write ascii code <]
+        if (a->ftable[i].f > 0) {
+            /* Write ascii code */
             byte = i;
             fwrite(&byte, sizeof(uint8_t), 1, fp);
-            [> Write huffcode info <]
-            strcpy(code, codebook[i].code);
-            if (strlen(code) % 8 != 0) {
-                x = (strlen(code) / 8) + 1; // no. of bytes
-                y = 8 - (strlen(code) % 8); // padding bits
-            } else {
-                x = strlen(code) / 8; // no. of bytes
-                y = 0; // padding bits
-            }
-            assert(x < 64 && y < 64);
-            byte = x;
-            byte = (byte << 4) | y;
-            fwrite(&byte, sizeof(uint8_t), 1, fp);
-            [> Write huffcode <]
-            l = strlen(code);
-            for (j=0; j<y; j++) {
-                code[l + j] = '0';
-            }
-            code[l + j] = '\0';
-            assert(strlen(code) % 8 == 0);
-            assert(strlen(code) / 8 == x);
-            offset = 0;
-            byte = 0;
-            for (j=0; j<strlen(code); j++) {
-                byte = (byte << 1) | ((int) (code[j] - '0'));
-                offset++;
-                if (offset == 8) {
-                    fwrite(&byte, sizeof(uint8_t), 1, fp);
-                    byte = 0;
-                    offset = 0;
-                }
-            }
+            /* Write fs */
+            fs = (uint16_t) a->ftable[i].f;
+            fwrite(&fs, sizeof(uint16_t), 1, fp);
         }
     }
-}*/
+}
 
 /** Create a frequency table from the input stream.
  *
@@ -187,7 +157,7 @@ int main(int argc, char *argv[])
     }
     fclose(fp);
     /* Write header to the output file */
-    /*write_header(kans, padding, codebook);*/
+    write_header(kans, a);
     /* Copy bitstream from tempfile to output file */
     rewind(temp);
     while (fread(&byte, sizeof(uint8_t), 1, temp) == 1) {
